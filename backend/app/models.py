@@ -1,10 +1,9 @@
 """Domain models for the workflow API.
 
-These mirror the frontend's `src/types/workflow.ts` so both ends speak the same
-wire contract. They are a STARTING POINT taken from the exercise brief — the
-precise schema is part of the design problem, so change them where you can
-justify it, but keep the two sides aligned (see the README note on type
-alignment).
+These Pydantic models are the authoritative wire contract. Frontend TypeScript
+types are generated from the OpenAPI schema this application exposes. They are
+a STARTING POINT taken from the exercise brief — change them where you can
+justify it, then regenerate the frontend contract.
 """
 
 from typing import Literal, Optional

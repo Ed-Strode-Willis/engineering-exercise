@@ -9,6 +9,11 @@ operations, validation feedback, and save/load wiring are the exercise (see
 
 - Node **20+** (`.nvmrc` at the repo root pins a version)
 - npm
+- Python **3.12+** and Poetry, with `poetry install` already run in `backend/`
+
+`npm run dev` and `npm run build` export the OpenAPI schema before they do
+anything else. That export runs the backend through Poetry, so frontend
+development and production builds fail until the backend environment exists.
 
 ## Install & run
 
@@ -25,15 +30,24 @@ Point the app at the backend by copying `.env.example` to `.env` (the default,
 
 ## Scripts
 
-| Command             | What it does                          |
-| ------------------- | ------------------------------------- |
-| `npm run dev`       | Start the Vite dev server             |
-| `npm run build`     | Type-check and build for production   |
-| `npm run test`      | Run Vitest in watch mode              |
-| `npm run test:run`  | Run Vitest once                       |
-| `npm run lint`      | ESLint                                |
-| `npm run typecheck` | `tsc --noEmit`                        |
-| `npm run format`    | Prettier                              |
+| Command              | What it does                                              |
+| -------------------- | --------------------------------------------------------- |
+| `npm run dev`        | Regenerate the API contract, then start Vite              |
+| `npm run build`      | Regenerate the API contract, then type-check and build    |
+| `npm run generate:api` | Export OpenAPI and regenerate `src/api/generated.ts`  |
+| `npm run test`       | Run Vitest in watch mode                                  |
+| `npm run test:run`   | Run Vitest once                                           |
+| `npm run lint`       | ESLint                                                    |
+| `npm run typecheck`  | `tsc --noEmit`                                            |
+| `npm run format`     | Prettier                                                  |
+
+`generate:api` is `api:export` (Poetry runs `backend/scripts/export_openapi.py`)
+followed by `api:types` (`openapi-typescript`). `predev` and `prebuild` call it,
+so a normal dev server or production build never skips generation. Vite reloads
+when `src/api/generated.ts` changes.
+
+From the repository root, `npm run dev` also watches `backend/app/**/*.py` and
+regenerates on change. Production builds do not watch.
 
 ## What's provided vs. what's yours
 
@@ -44,8 +58,10 @@ Point the app at the backend by copying `.env.example` to `.env` (the default,
   and `sonner` (toasts) installed and wired.
 - A running canvas (`features/workflow/WorkflowEditor.tsx`) with a basic custom
   node, node definitions, a node factory, and a seed graph.
-- The domain contract in `src/types/workflow.ts` and an API client seam in
-  `src/api/workflows.ts`.
+- The persisted contract in `src/types/workflow.ts`, aliased from generated
+  OpenAPI types, and an API client seam in `src/api/workflows.ts`.
+- React Flow types in `features/workflow/flowTypes.ts`, kept separate from the
+  persisted contract.
 - Vitest configured, with one example test.
 
 **Yours to design and build:**
@@ -63,8 +79,10 @@ Point the app at the backend by copying `.env.example` to `.env` (the default,
 frontend/src/
 ├── main.tsx                    # root: QueryClient + ReactFlowProvider + Toaster
 ├── App.tsx                     # shell
-├── types/workflow.ts           # domain contract (mirrors the backend)
-├── api/workflows.ts            # axios client seam (create / get / update)
+├── types/workflow.ts           # aliases of the generated API contract
+├── api/
+│   ├── generated.ts            # generated — do not edit
+│   └── workflows.ts            # axios client seam (create / get / update)
 └── features/workflow/
     ├── WorkflowEditor.tsx      # the ReactFlow canvas (start here)
     ├── WorkflowNode.tsx        # custom node (improve me)
@@ -74,6 +92,15 @@ frontend/src/
     ├── initialWorkflow.ts      # seed graph
     └── __tests__/              # example Vitest test
 ```
+
+`frontend/openapi/openapi.json` is the exported schema. It is generated. Do not
+edit it, or `src/api/generated.ts`, by hand.
+
+Pydantic models are the source of truth. `src/types/workflow.ts` only aliases
+`components["schemas"]` from the generated module. `NodeType` and `DataType`
+are derived from `WorkflowNode["type"]` and `HandleDefinition["type"]` because
+OpenAPI inlines those literals instead of naming them. React Flow's `FlowNode`
+and `FlowEdge` are not those API types.
 
 Everything here is a starting point — restructure it as you see fit and explain
 material changes in your README.

@@ -51,12 +51,13 @@ npm run dev
 ### Optional: run both with one command
 
 ```bash
-npm install          # installs `concurrently` at the root
-npm run dev          # starts frontend + backend together
+npm install          # installs `concurrently` and the API type watcher
+npm run dev          # frontend, backend, and contract regeneration
 ```
 
 (Assumes you've already run `poetry install` in `backend/` and `npm install` in
-`frontend/`.)
+`frontend/`. The frontend dev server exports the OpenAPI schema before it
+starts, so the backend Poetry environment has to be installed first.)
 
 ### Optional: backend in Docker
 
@@ -66,7 +67,9 @@ If you'd rather not install Python/Poetry:
 docker compose up    # backend at http://localhost:8000
 ```
 
-Then run the frontend with npm as above.
+Then run the frontend with npm as above. Frontend dev and production builds
+still export the OpenAPI schema locally, so Poetry and the backend
+dependencies must be installed even when the API process runs in Docker.
 
 ## Running the tests
 
@@ -77,7 +80,36 @@ cd backend  && poetry run pytest     # pytest
 
 ## Type alignment
 
-The domain contract is defined on both sides and kept in step by hand for now:
-`frontend/src/types/workflow.ts` and `backend/app/models.py`. The backend
-serialises to camelCase so both ends share one wire shape. Keeping these aligned
-(and how you might automate it) is something to think about — see the brief.
+Pydantic models in `backend/app/models.py` are the source of truth. The frontend
+does not keep a second handwritten copy of the wire contract.
+
+Generate the contract by hand with:
+
+```bash
+npm run generate:api
+```
+
+That exports OpenAPI without starting the server (`frontend/openapi/openapi.json`)
+and writes TypeScript types (`frontend/src/api/generated.ts`). The same
+generation runs automatically before `npm run dev` and `npm run build` in
+`frontend/`. While the root `npm run dev` command is running, changes under
+`backend/app/**/*.py` regenerate the contract. Vite reloads when the generated
+TypeScript module changes.
+
+`frontend/src/types/workflow.ts` aliases the persisted models from that
+generated module. React Flow's editor types stay separate in
+`frontend/src/features/workflow/flowTypes.ts`.
+
+Do not edit `frontend/openapi/openapi.json` or `frontend/src/api/generated.ts`
+by hand. Change the Pydantic models and regenerate.
+
+Install the backend Poetry dependencies before a frontend dev server or
+production build. Both export the schema first, and a missing environment
+stops generation.
+
+CI should regenerate and fail when the committed artifacts are stale:
+
+```bash
+npm run generate:api
+git diff --exit-code -- frontend/openapi/openapi.json frontend/src/api/generated.ts
+```

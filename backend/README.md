@@ -40,10 +40,11 @@ behaviour of the workflow endpoints. Replace the workflow tests as you build.
 
 - A runnable FastAPI app (`app/main.py`) with CORS configured for the Vite dev
   server (`app/config.py`).
-- Starting Pydantic models (`app/models.py`) mirroring the frontend types,
-  serialised as camelCase on the wire.
-- Stubbed workflow routes (`app/routers/workflows.py`) returning `501` with a
-  `# TODO` at each decision point.
+- Starting Pydantic models (`app/models.py`). These are the authoritative API
+  contract and are serialised as camelCase on the wire. The frontend generates
+  its TypeScript types from the OpenAPI schema.
+- Stubbed workflow routes (`app/routers/workflows.py`) returning `501` and a
+  not-implemented `ValidationResult`, with a `# TODO` at each decision point.
 - A health route and a green test suite.
 
 **Yours to design and build:**
@@ -55,8 +56,28 @@ behaviour of the workflow endpoints. Replace the workflow tests as you build.
 - The concurrent-update decision, written up in the README (§C6).
 
 Everything here is a starting point — change the schema, restructure the app,
-swap tooling. Just keep the frontend and backend contract in step and explain
-material changes.
+swap tooling. The Pydantic models are the source of truth: after a contract
+change, regenerate the frontend types (see the root README). Do not edit the
+generated OpenAPI or TypeScript files by hand.
+
+## OpenAPI export
+
+`scripts/export_openapi.py` imports the FastAPI app and writes `app.openapi()`
+to `frontend/openapi/openapi.json`. It does not start a server, and it resolves
+paths from the script file rather than the current working directory.
+
+```bash
+poetry run python scripts/export_openapi.py
+```
+
+From the repo root, `npm run generate:api` runs that export and then
+`openapi-typescript`. Frontend `dev` and `build` do the same before they start,
+so this Poetry environment must be installed first. The root `npm run dev`
+command also watches `backend/app/**/*.py` and regenerates when those files
+change. Production builds do not watch.
+
+The stubbed workflow routes document and return a `501` `ValidationResult`, so
+`ValidationIssue` and `ValidationResult` are part of the exported schema.
 
 ## Example requests
 
