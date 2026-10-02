@@ -1,72 +1,92 @@
-from fastapi import APIRouter, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.models import ValidationIssue, ValidationResult, Workflow
+from app.dependencies import get_workflow_repository
+from app.models import Workflow, WorkflowDocument, WorkflowSummary, WorkflowWrite
+from app.persistence.repository import WorkflowRepository
+from app.validation.service import status_for_validation, validate_workflow
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
-NOT_IMPLEMENTED_VALIDATION_RESPONSE = {
-    status.HTTP_501_NOT_IMPLEMENTED: {"model": ValidationResult},
-}
-
-# TODO (candidate): persistence. In-memory, a file, SQLite — your choice
-# (brief §C3). Whatever you pick, state the consequences.
+WORKFLOW_NOT_FOUND_DETAIL = "Workflow not found"
 
 
-def build_not_implemented_validation_result(message: str) -> ValidationResult:
-    not_implemented_issue = ValidationIssue(
-        code="not_implemented",
-        message=message,
+@router.get("")
+def list_workflows(
+    repository: WorkflowRepository = Depends(get_workflow_repository),
+) -> list[WorkflowSummary]:
+    """List stored workflows, oldest first."""
+    return repository.list_workflow_summaries()
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+def create_workflow(
+    workflow_write: WorkflowWrite,
+    repository: WorkflowRepository = Depends(get_workflow_repository),
+) -> WorkflowDocument:
+    """Store a workflow and return it with its validation."""
+    validation = validate_workflow(workflow_write)
+    workflow = repository.create_workflow(
+        workflow_write, status_for_validation(validation)
     )
-    return ValidationResult(valid=False, errors=[not_implemented_issue])
+    return WorkflowDocument(workflow=workflow, validation=validation)
 
 
-def not_implemented_validation_response(message: str) -> JSONResponse:
-    validation_result = build_not_implemented_validation_result(message)
-    response_body = validation_result.model_dump(by_alias=True, mode="json")
-    return JSONResponse(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        content=response_body,
+@router.get("/{workflow_id}")
+def get_workflow(
+    workflow_id: str,
+    repository: WorkflowRepository = Depends(get_workflow_repository),
+) -> WorkflowDocument:
+    """Retrieve a workflow and the validation of the stored document."""
+    workflow = repository.get_workflow(workflow_id)
+    if workflow is None:
+        raise_workflow_not_found()
+    return build_workflow_document(workflow)
+
+
+@router.put("/{workflow_id}")
+def replace_workflow(
+    workflow_id: str,
+    workflow_write: WorkflowWrite,
+    repository: WorkflowRepository = Depends(get_workflow_repository),
+) -> WorkflowDocument:
+    """Replace a workflow. An invalid graph is stored with status invalid."""
+    validation = validate_workflow(workflow_write)
+    workflow = repository.replace_workflow(
+        workflow_id, workflow_write, status_for_validation(validation)
+    )
+    if workflow is None:
+        raise_workflow_not_found()
+    return WorkflowDocument(workflow=workflow, validation=validation)
+
+
+@router.delete("/{workflow_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_workflow(
+    workflow_id: str,
+    repository: WorkflowRepository = Depends(get_workflow_repository),
+) -> None:
+    """Delete a workflow."""
+    deleted = repository.delete_workflow(workflow_id)
+    if not deleted:
+        raise_workflow_not_found()
+
+
+def build_workflow_document(workflow: Workflow) -> WorkflowDocument:
+    """A stored workflow with the validation of the document as stored."""
+    return WorkflowDocument(
+        workflow=workflow, validation=validate_workflow(workflow_to_write(workflow))
     )
 
 
-@router.post(
-    "",
-    status_code=status.HTTP_201_CREATED,
-    responses=NOT_IMPLEMENTED_VALIDATION_RESPONSE,
-)
-def create_workflow(workflow: Workflow) -> Workflow:
-    """Create/save a workflow and return it with a stable identifier."""
-    return not_implemented_validation_response(
-        "Not implemented — design and build POST /workflows."
+def workflow_to_write(workflow: Workflow) -> WorkflowWrite:
+    return WorkflowWrite(
+        name=workflow.name,
+        nodes=workflow.nodes,
+        edges=workflow.edges,
     )
 
 
-@router.get(
-    "/{workflow_id}",
-    responses=NOT_IMPLEMENTED_VALIDATION_RESPONSE,
-)
-def get_workflow(workflow_id: str) -> Workflow:
-    """Retrieve a workflow by its identifier."""
-    return not_implemented_validation_response(
-        "Not implemented — design and build GET /workflows/{id}."
+def raise_workflow_not_found() -> None:
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=WORKFLOW_NOT_FOUND_DETAIL,
     )
-
-
-@router.put(
-    "/{workflow_id}",
-    responses=NOT_IMPLEMENTED_VALIDATION_RESPONSE,
-)
-def update_workflow(workflow_id: str, workflow: Workflow) -> Workflow:
-    """Update an existing workflow."""
-    return not_implemented_validation_response(
-        "Not implemented — design and build PUT /workflows/{id}."
-    )
-
-
-# TODO (candidate): full-workflow validation (brief §C4). Decide whether this is
-# a separate endpoint (e.g. POST /workflows/{id}/validate or POST
-# /workflows/validate) or runs on save, and return structured diagnostics (see
-# `ValidationResult` in app/models.py) rather than a bare boolean. Keeping the
-# validation logic in its own pure module, independent of the web layer, makes
-# it far easier to test.

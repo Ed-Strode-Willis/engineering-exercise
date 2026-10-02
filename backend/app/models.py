@@ -1,18 +1,21 @@
 """Domain models for the workflow API.
 
 These Pydantic models are the authoritative wire contract. Frontend TypeScript
-types are generated from the OpenAPI schema this application exposes. They are
-a STARTING POINT taken from the exercise brief — change them where you can
-justify it, then regenerate the frontend contract.
+types are generated from the OpenAPI schema this application exposes.
 """
 
 from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic.alias_generators import to_camel
 
-DataType = Literal["Dataset", "Model", "Any"]
+DataType = Literal["Dataset", "Model"]
 NodeType = Literal["DataSource", "Transform", "Model"]
+WorkflowStatus = Literal["valid", "invalid"]
+
+# An error is a document the editor could not have produced; a warning is an
+# unfinished pipeline. See app/validation/catalog.py.
+Severity = Literal["error", "warning"]
 
 
 class CamelModel(BaseModel):
@@ -59,17 +62,45 @@ class WorkflowEdge(CamelModel):
     target_handle_id: str
 
 
-class Workflow(CamelModel):
-    id: Optional[str] = None
+class WorkflowWrite(CamelModel):
+    """A workflow document submitted by a client. The server assigns id and status."""
+
     name: str
     nodes: list[WorkflowNode] = []
     edges: list[WorkflowEdge] = []
 
+    @field_validator("name")
+    @classmethod
+    def require_non_blank_workflow_name(cls, workflow_name: str) -> str:
+        stripped_workflow_name = workflow_name.strip()
+        if not stripped_workflow_name:
+            raise ValueError("Workflow name cannot be blank")
+        return stripped_workflow_name
+
+
+class Workflow(CamelModel):
+    id: str
+    name: str
+    status: WorkflowStatus
+    nodes: list[WorkflowNode] = []
+    edges: list[WorkflowEdge] = []
+
+
+class WorkflowSummary(CamelModel):
+    id: str
+    name: str
+    status: WorkflowStatus
+
 
 class ValidationIssue(CamelModel):
-    """A single coded, path-addressed diagnostic (see brief §C4)."""
+    """A single coded, path-addressed diagnostic.
+
+    `message` is written for the person using the editor, so it names node and
+    handle labels. The matching id-based message goes to the backend log.
+    """
 
     code: str
+    severity: Severity
     message: str
     node_id: Optional[str] = None
     edge_id: Optional[str] = None
@@ -80,3 +111,10 @@ class ValidationResult(CamelModel):
     valid: bool
     errors: list[ValidationIssue] = []
     warnings: list[ValidationIssue] = []
+
+
+class WorkflowDocument(CamelModel):
+    """A stored workflow together with the validation of that document."""
+
+    workflow: Workflow
+    validation: ValidationResult

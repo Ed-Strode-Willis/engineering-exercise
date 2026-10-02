@@ -1,12 +1,17 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import SETTINGS
 from app.routers import health, workflows
 
+# Validation writes one line per finding, so the log has to have a handler.
+logging.basicConfig(level=logging.INFO)
+
 app = FastAPI(
     title="Workflow API — Full-Stack Exercise",
-    description="Starter backend for the workflow builder exercise. See README.md.",
+    description="Create, validate, save, and retrieve machine-learning workflows.",
 )
 
 app.add_middleware(
