@@ -17,7 +17,7 @@ const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const openApiPath = resolve(frontendRoot, "openapi/openapi.json");
 const schemaOutputPath = resolve(
   frontendRoot,
-  "src/validation/generated/workflowSchema.ts",
+  "src/validation/generatedWorkflowSchema.ts",
 );
 
 const generatedFileBanner =

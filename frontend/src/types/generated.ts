@@ -31,11 +31,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Workflows
+         * @description List stored workflows, oldest first.
+         */
+        get: operations["list_workflows_workflows_get"];
         put?: never;
         /**
          * Create Workflow
-         * @description Create/save a workflow and return it with a stable identifier.
+         * @description Store a workflow and return it with its validation.
          */
         post: operations["create_workflow_workflows_post"];
         delete?: never;
@@ -53,16 +57,20 @@ export interface paths {
         };
         /**
          * Get Workflow
-         * @description Retrieve a workflow by its identifier.
+         * @description Retrieve a workflow and the validation of the stored document.
          */
         get: operations["get_workflow_workflows__workflow_id__get"];
         /**
-         * Update Workflow
-         * @description Update an existing workflow.
+         * Replace Workflow
+         * @description Replace a workflow. An invalid graph is stored with status invalid.
          */
-        put: operations["update_workflow_workflows__workflow_id__put"];
+        put: operations["replace_workflow_workflows__workflow_id__put"];
         post?: never;
-        delete?: never;
+        /**
+         * Delete Workflow
+         * @description Delete a workflow.
+         */
+        delete: operations["delete_workflow_workflows__workflow_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -92,7 +100,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "Dataset" | "Model" | "Any";
+            type: "Dataset" | "Model";
         };
         /** Position */
         Position: {
@@ -116,7 +124,10 @@ export interface components {
         };
         /**
          * ValidationIssue
-         * @description A single coded, path-addressed diagnostic (see brief §C4).
+         * @description A single coded, path-addressed diagnostic.
+         *
+         *     `message` is written for the person using the editor, so it names node and
+         *     handle labels. The matching id-based message goes to the backend log.
          */
         ValidationIssue: {
             /** Code */
@@ -129,6 +140,11 @@ export interface components {
             nodeId?: string | null;
             /** Path */
             path?: string | null;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "error" | "warning";
         };
         /** ValidationResult */
         ValidationResult: {
@@ -153,7 +169,7 @@ export interface components {
              */
             edges?: components["schemas"]["WorkflowEdge"][];
             /** Id */
-            id?: string | null;
+            id: string;
             /** Name */
             name: string;
             /**
@@ -161,6 +177,19 @@ export interface components {
              * @default []
              */
             nodes?: components["schemas"]["WorkflowNode"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "valid" | "invalid";
+        };
+        /**
+         * WorkflowDocument
+         * @description A stored workflow together with the validation of that document.
+         */
+        WorkflowDocument: {
+            validation: components["schemas"]["ValidationResult"];
+            workflow: components["schemas"]["Workflow"];
         };
         /** WorkflowEdge */
         WorkflowEdge: {
@@ -202,6 +231,36 @@ export interface components {
              */
             outputs?: components["schemas"]["HandleDefinition"][];
         };
+        /** WorkflowSummary */
+        WorkflowSummary: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "valid" | "invalid";
+        };
+        /**
+         * WorkflowWrite
+         * @description A workflow document submitted by a client. The server assigns id and status.
+         */
+        WorkflowWrite: {
+            /**
+             * Edges
+             * @default []
+             */
+            edges?: components["schemas"]["WorkflowEdge"][];
+            /** Name */
+            name: string;
+            /**
+             * Nodes
+             * @default []
+             */
+            nodes?: components["schemas"]["WorkflowNode"][];
+        };
     };
     responses: never;
     parameters: never;
@@ -233,6 +292,26 @@ export interface operations {
             };
         };
     };
+    list_workflows_workflows_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowSummary"][];
+                };
+            };
+        };
+    };
     create_workflow_workflows_post: {
         parameters: {
             query?: never;
@@ -242,7 +321,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Workflow"];
+                "application/json": components["schemas"]["WorkflowWrite"];
             };
         };
         responses: {
@@ -252,7 +331,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Workflow"];
+                    "application/json": components["schemas"]["WorkflowDocument"];
                 };
             };
             /** @description Validation Error */
@@ -262,15 +341,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description Not Implemented */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ValidationResult"];
                 };
             };
         };
@@ -292,7 +362,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Workflow"];
+                    "application/json": components["schemas"]["WorkflowDocument"];
                 };
             };
             /** @description Validation Error */
@@ -304,18 +374,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description Not Implemented */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ValidationResult"];
-                };
-            };
         };
     };
-    update_workflow_workflows__workflow_id__put: {
+    replace_workflow_workflows__workflow_id__put: {
         parameters: {
             query?: never;
             header?: never;
@@ -326,7 +387,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Workflow"];
+                "application/json": components["schemas"]["WorkflowWrite"];
             };
         };
         responses: {
@@ -336,7 +397,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Workflow"];
+                    "application/json": components["schemas"]["WorkflowDocument"];
                 };
             };
             /** @description Validation Error */
@@ -348,13 +409,33 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description Not Implemented */
-            501: {
+        };
+    };
+    delete_workflow_workflows__workflow_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ValidationResult"];
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

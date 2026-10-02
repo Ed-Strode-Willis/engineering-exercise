@@ -16,20 +16,19 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md}\"",
     "api:export": "cd ../backend && poetry run python scripts/export_openapi.py",
-    "api:types": "openapi-typescript openapi/openapi.json -o src/api/generated.ts --default-non-nullable false",
-    "generate:api": "npm run api:export && npm run api:types",
+    "api:types": "openapi-typescript openapi/openapi.json -o src/types/generated.ts --default-non-nullable false",
+    "api:schema": "node scripts/generateZodSchema.mjs",
+    "generate:api": "npm run api:export && npm run api:schema && npm run api:types",
     "predev": "npm run generate:api",
     "prebuild": "npm run generate:api"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.101.2",
     "@xyflow/react": "^12.11.0",
     "axios": "^1.13.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "sonner": "^2.0.7",
-    "tailwind-merge": "^3.6.0",
     "uuid": "^14.0.1",
+    "zod": "^4.6.5",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
@@ -47,6 +46,7 @@
     "eslint-plugin-react-refresh": "^0.4.14",
     "globals": "^15.14.0",
     "jsdom": "^26.0.0",
+    "json-schema-to-zod": "^2.8.1",
     "openapi-typescript": "^7.13.0",
     "prettier": "^3.9.4",
     "prettier-plugin-tailwindcss": "^0.8.0",

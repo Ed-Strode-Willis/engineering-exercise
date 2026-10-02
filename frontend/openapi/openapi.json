@@ -17,10 +17,14 @@
       "HandleDefinition": {
         "properties": {
           "id": {
+            "minLength": 1,
+            "pattern": ".*\\S.*",
             "title": "Id",
             "type": "string"
           },
           "label": {
+            "minLength": 1,
+            "pattern": ".*\\S.*",
             "title": "Label",
             "type": "string"
           },
@@ -32,8 +36,7 @@
           "type": {
             "enum": [
               "Dataset",
-              "Model",
-              "Any"
+              "Model"
             ],
             "title": "Type",
             "type": "string"
@@ -106,9 +109,11 @@
         "type": "object"
       },
       "ValidationIssue": {
-        "description": "A single coded, path-addressed diagnostic (see brief \u00a7C4).",
+        "description": "A single coded, path-addressed diagnostic.\n\n`message` is written for the person using the editor, so it names node and\nhandle labels. The matching id-based message goes to the backend log.",
         "properties": {
           "code": {
+            "minLength": 1,
+            "pattern": ".*\\S.*",
             "title": "Code",
             "type": "string"
           },
@@ -124,6 +129,8 @@
             "title": "Edgeid"
           },
           "message": {
+            "minLength": 1,
+            "pattern": ".*\\S.*",
             "title": "Message",
             "type": "string"
           },
@@ -148,10 +155,19 @@
               }
             ],
             "title": "Path"
+          },
+          "severity": {
+            "enum": [
+              "error",
+              "warning"
+            ],
+            "title": "Severity",
+            "type": "string"
           }
         },
         "required": [
           "code",
+          "severity",
           "message"
         ],
         "title": "ValidationIssue",
@@ -197,17 +213,14 @@
             "type": "array"
           },
           "id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Id"
+            "minLength": 1,
+            "pattern": ".*\\S.*",
+            "title": "Id",
+            "type": "string"
           },
           "name": {
+            "minLength": 1,
+            "pattern": ".*\\S.*",
             "title": "Name",
             "type": "string"
           },
@@ -218,33 +231,70 @@
             },
             "title": "Nodes",
             "type": "array"
+          },
+          "status": {
+            "enum": [
+              "valid",
+              "invalid"
+            ],
+            "title": "Status",
+            "type": "string"
           }
         },
         "required": [
-          "name"
+          "id",
+          "name",
+          "status"
         ],
         "title": "Workflow",
+        "type": "object"
+      },
+      "WorkflowDocument": {
+        "description": "A stored workflow together with the validation of that document.",
+        "properties": {
+          "validation": {
+            "$ref": "#/components/schemas/ValidationResult"
+          },
+          "workflow": {
+            "$ref": "#/components/schemas/Workflow"
+          }
+        },
+        "required": [
+          "workflow",
+          "validation"
+        ],
+        "title": "WorkflowDocument",
         "type": "object"
       },
       "WorkflowEdge": {
         "properties": {
           "id": {
+            "minLength": 1,
+            "pattern": ".*\\S.*",
             "title": "Id",
             "type": "string"
           },
           "sourceHandleId": {
+            "minLength": 1,
+            "pattern": ".*\\S.*",
             "title": "Sourcehandleid",
             "type": "string"
           },
           "sourceNodeId": {
+            "minLength": 1,
+            "pattern": ".*\\S.*",
             "title": "Sourcenodeid",
             "type": "string"
           },
           "targetHandleId": {
+            "minLength": 1,
+            "pattern": ".*\\S.*",
             "title": "Targethandleid",
             "type": "string"
           },
           "targetNodeId": {
+            "minLength": 1,
+            "pattern": ".*\\S.*",
             "title": "Targetnodeid",
             "type": "string"
           }
@@ -265,6 +315,8 @@
             "$ref": "#/components/schemas/WorkflowNodeData"
           },
           "id": {
+            "minLength": 1,
+            "pattern": ".*\\S.*",
             "title": "Id",
             "type": "string"
           },
@@ -301,6 +353,8 @@
             "type": "array"
           },
           "label": {
+            "minLength": 1,
+            "pattern": ".*\\S.*",
             "title": "Label",
             "type": "string"
           },
@@ -318,11 +372,74 @@
         ],
         "title": "WorkflowNodeData",
         "type": "object"
+      },
+      "WorkflowSummary": {
+        "properties": {
+          "id": {
+            "minLength": 1,
+            "pattern": ".*\\S.*",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "pattern": ".*\\S.*",
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "valid",
+              "invalid"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status"
+        ],
+        "title": "WorkflowSummary",
+        "type": "object"
+      },
+      "WorkflowWrite": {
+        "description": "A workflow document submitted by a client. The server assigns id and status.",
+        "properties": {
+          "edges": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/WorkflowEdge"
+            },
+            "title": "Edges",
+            "type": "array"
+          },
+          "name": {
+            "minLength": 1,
+            "pattern": ".*\\S.*",
+            "title": "Name",
+            "type": "string"
+          },
+          "nodes": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/WorkflowNode"
+            },
+            "title": "Nodes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "WorkflowWrite",
+        "type": "object"
       }
     }
   },
   "info": {
-    "description": "Starter backend for the workflow builder exercise. See README.md.",
+    "description": "Create, validate, save, and retrieve machine-learning workflows.",
     "title": "Workflow API \u2014 Full-Stack Exercise",
     "version": "0.1.0"
   },
@@ -355,14 +472,38 @@
       }
     },
     "/workflows": {
+      "get": {
+        "description": "List stored workflows, oldest first.",
+        "operationId": "list_workflows_workflows_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkflowSummary"
+                  },
+                  "title": "Response List Workflows Workflows Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Workflows",
+        "tags": [
+          "workflows"
+        ]
+      },
       "post": {
-        "description": "Create/save a workflow and return it with a stable identifier.",
+        "description": "Store a workflow and return it with its validation.",
         "operationId": "create_workflow_workflows_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Workflow"
+                "$ref": "#/components/schemas/WorkflowWrite"
               }
             }
           },
@@ -373,7 +514,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Workflow"
+                  "$ref": "#/components/schemas/WorkflowDocument"
                 }
               }
             },
@@ -388,16 +529,6 @@
               }
             },
             "description": "Validation Error"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationResult"
-                }
-              }
-            },
-            "description": "Not Implemented"
           }
         },
         "summary": "Create Workflow",
@@ -407,8 +538,42 @@
       }
     },
     "/workflows/{workflow_id}": {
+      "delete": {
+        "description": "Delete a workflow.",
+        "operationId": "delete_workflow_workflows__workflow_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "title": "Workflow Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Workflow",
+        "tags": [
+          "workflows"
+        ]
+      },
       "get": {
-        "description": "Retrieve a workflow by its identifier.",
+        "description": "Retrieve a workflow and the validation of the stored document.",
         "operationId": "get_workflow_workflows__workflow_id__get",
         "parameters": [
           {
@@ -426,7 +591,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Workflow"
+                  "$ref": "#/components/schemas/WorkflowDocument"
                 }
               }
             },
@@ -441,16 +606,6 @@
               }
             },
             "description": "Validation Error"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationResult"
-                }
-              }
-            },
-            "description": "Not Implemented"
           }
         },
         "summary": "Get Workflow",
@@ -459,8 +614,8 @@
         ]
       },
       "put": {
-        "description": "Update an existing workflow.",
-        "operationId": "update_workflow_workflows__workflow_id__put",
+        "description": "Replace a workflow. An invalid graph is stored with status invalid.",
+        "operationId": "replace_workflow_workflows__workflow_id__put",
         "parameters": [
           {
             "in": "path",
@@ -476,7 +631,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Workflow"
+                "$ref": "#/components/schemas/WorkflowWrite"
               }
             }
           },
@@ -487,7 +642,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Workflow"
+                  "$ref": "#/components/schemas/WorkflowDocument"
                 }
               }
             },
@@ -502,19 +657,9 @@
               }
             },
             "description": "Validation Error"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationResult"
-                }
-              }
-            },
-            "description": "Not Implemented"
           }
         },
-        "summary": "Update Workflow",
+        "summary": "Replace Workflow",
         "tags": [
           "workflows"
         ]

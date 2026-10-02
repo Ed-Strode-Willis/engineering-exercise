@@ -2,7 +2,7 @@
  * Persisted workflow contract.
  *
  * FastAPI and Pydantic are the source of truth. These aliases are derived from
- * the generated OpenAPI types in `src/api/generated.ts`. Do not edit that file
+ * the generated OpenAPI types in `src/types/generated.ts`. Do not edit that file
  * or `openapi/openapi.json` by hand — change the backend models and regenerate.
  *
  * React Flow's editor types stay in `features/workflow/flowTypes.ts`. Map
@@ -10,11 +10,14 @@
  * objects.
  */
 
-import type { components } from "@/api/generated";
+import type { components } from "@/types/generated";
 
 type ApiSchemas = components["schemas"];
 
 export type Workflow = ApiSchemas["Workflow"];
+export type WorkflowWrite = ApiSchemas["WorkflowWrite"];
+export type WorkflowDocument = ApiSchemas["WorkflowDocument"];
+export type WorkflowSummary = ApiSchemas["WorkflowSummary"];
 export type WorkflowNode = ApiSchemas["WorkflowNode"];
 export type WorkflowEdge = ApiSchemas["WorkflowEdge"];
 export type HandleDefinition = ApiSchemas["HandleDefinition"];
@@ -27,3 +30,4 @@ export type ValidationResult = ApiSchemas["ValidationResult"];
  */
 export type NodeType = WorkflowNode["type"];
 export type DataType = HandleDefinition["type"];
+export type WorkflowStatus = Workflow["status"];

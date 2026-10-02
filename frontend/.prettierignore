@@ -1,1 +1,2 @@
-src/api/generated.ts
+src/types/generated.ts
+src/validation/generatedWorkflowSchema.ts
