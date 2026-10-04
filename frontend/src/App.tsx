@@ -1,4 +1,4 @@
-import { WorkflowEditor } from "@/features/workflow/WorkflowEditor";
+import { WorkflowEditor } from "@/components/workflow/WorkflowEditor";
 
 export function App() {
   return (

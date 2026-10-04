@@ -1,8 +1,22 @@
 @import "tailwindcss";
 
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
+.react-flow__connection-path {
+  stroke: #a3a3a3;
+  stroke-width: 1.5;
+}
+
+.react-flow__connection.invalid .react-flow__connection-path {
+  stroke: #dc2626;
+}
+
+@keyframes connection-refusal-in {
+  from {
+    opacity: 0;
+    translate: 0 0.6rem;
+  }
+
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
 }
