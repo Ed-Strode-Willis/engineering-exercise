@@ -19,7 +19,7 @@ Errors:
 Warnings:
 
 - A required input has no connection.
-- A required output has no connection. A Transform output is required.
+- A required output has no connection. A Dataset output is required, on a DataSource and on a Transform.
 
 A warning still makes the workflow invalid.
 

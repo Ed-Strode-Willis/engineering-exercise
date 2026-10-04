@@ -45,14 +45,13 @@ def build_handle(
     )
 
 
-DATASET_OUTPUT = build_handle("dataset", "Dataset", "Dataset")
-TRANSFORM_OUTPUT = build_handle("dataset", "Dataset", "Dataset", required=True)
+DATASET_OUTPUT = build_handle("dataset", "Dataset", "Dataset", required=True)
 DATASET_INPUT = build_handle("dataset", "Dataset", "Dataset", required=True)
 MODEL_OUTPUT = build_handle("model", "Model", "Model")
 
 NODE_CATALOG: dict[NodeType, NodeCatalogEntry] = {
     "DataSource": NodeCatalogEntry(inputs=[], outputs=[DATASET_OUTPUT]),
-    "Transform": NodeCatalogEntry(inputs=[DATASET_INPUT], outputs=[TRANSFORM_OUTPUT]),
+    "Transform": NodeCatalogEntry(inputs=[DATASET_INPUT], outputs=[DATASET_OUTPUT]),
     "Model": NodeCatalogEntry(inputs=[DATASET_INPUT], outputs=[MODEL_OUTPUT]),
 }
 
