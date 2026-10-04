@@ -6,7 +6,7 @@ from app.main import app
 from app.persistence.memory import InMemoryWorkflowRepository
 from app.persistence.seed import EXAMPLE_PIPELINE_ID, build_example_pipeline
 from app.routers.workflows import workflow_to_write
-from app.validation.examples import disconnected_data_source, valid_pipeline
+from app.validation.examples import open_required_output, valid_pipeline
 from app.validation.service import validate_workflow
 
 
@@ -73,17 +73,17 @@ def test_missing_workflow_returns_404_for_each_lookup(client: TestClient):
 
 
 def test_invalid_graph_is_stored_as_invalid(client: TestClient):
-    created = client.post("/workflows", json=document_json(disconnected_data_source()))
+    created = client.post("/workflows", json=document_json(open_required_output()))
     assert created.status_code == 201
     body = created.json()
     assert body["workflow"]["status"] == "invalid"
     assert body["validation"]["valid"] is False
     assert body["validation"]["errors"] == []
-    disconnected_warning = body["validation"]["warnings"][0]
-    assert disconnected_warning["code"] == "DISCONNECTED_NODE"
-    assert disconnected_warning["severity"] == "warning"
-    assert disconnected_warning["message"] == (
-        '"Load Dataset" is not connected to anything.'
+    open_output_warning = body["validation"]["warnings"][0]
+    assert open_output_warning["code"] == "REQUIRED_OUTPUT_DISCONNECTED"
+    assert open_output_warning["severity"] == "warning"
+    assert open_output_warning["message"] == (
+        'The Dataset output on "Transform Dataset" still needs a connection.'
     )
 
     fetched = client.get(f"/workflows/{body['workflow']['id']}")
@@ -98,7 +98,7 @@ def test_replacing_a_valid_workflow_with_an_invalid_graph_stores_invalid(
 
     replaced = client.put(
         f"/workflows/{workflow_id}",
-        json=document_json(disconnected_data_source()),
+        json=document_json(open_required_output()),
     )
     assert replaced.status_code == 200
     assert replaced.json()["workflow"]["status"] == "invalid"

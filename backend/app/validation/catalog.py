@@ -8,13 +8,9 @@ you need to find the document again, and it goes to the backend log. The user
 message names the labels a person sees on the canvas, and it is the message the
 API returns.
 
-Severity separates the two kinds of problem:
-
-- `error` — a document the editor could not have produced: duplicate ids,
-  dangling references, handles that are not the ones the node type declares.
-  Something has gone wrong in the application.
-- `warning` — an unfinished pipeline the editor is happy to let someone build:
-  an open input, a step connected to nothing, a loop.
+The checks, and which are errors or warnings, are listed in
+`app/validation/service.py`. The frontend refuses some of the same connections
+while an edge is dragged, and those checks have to stay in step.
 """
 
 from dataclasses import dataclass
@@ -50,12 +46,13 @@ def build_handle(
 
 
 DATASET_OUTPUT = build_handle("dataset", "Dataset", "Dataset")
+TRANSFORM_OUTPUT = build_handle("dataset", "Dataset", "Dataset", required=True)
 DATASET_INPUT = build_handle("dataset", "Dataset", "Dataset", required=True)
 MODEL_OUTPUT = build_handle("model", "Model", "Model")
 
 NODE_CATALOG: dict[NodeType, NodeCatalogEntry] = {
     "DataSource": NodeCatalogEntry(inputs=[], outputs=[DATASET_OUTPUT]),
-    "Transform": NodeCatalogEntry(inputs=[DATASET_INPUT], outputs=[DATASET_OUTPUT]),
+    "Transform": NodeCatalogEntry(inputs=[DATASET_INPUT], outputs=[TRANSFORM_OUTPUT]),
     "Model": NodeCatalogEntry(inputs=[DATASET_INPUT], outputs=[MODEL_OUTPUT]),
 }
 
@@ -79,7 +76,7 @@ ISSUE_DEFINITIONS: dict[str, IssueDefinition] = {
             'Handle id "{handle_id}" is used more than once on node "{node_id}".'
         ),
         user_template=(
-            '"{node_label}" has two connection points named "{handle_label}".'
+            '"{node_label}" has two connection points named {handle_label}.'
         ),
     ),
     "UNKNOWN_NODE": IssueDefinition(
@@ -120,8 +117,8 @@ ISSUE_DEFINITIONS: dict[str, IssueDefinition] = {
             "{target_type} input."
         ),
         user_template=(
-            'The "{source_label}" output on "{source_node_label}" cannot feed the '
-            '"{target_label}" input on "{target_node_label}" '
+            'The {source_label} output on "{source_node_label}" cannot feed the '
+            '{target_label} input on "{target_node_label}" '
             "({source_type} to {target_type})."
         ),
     ),
@@ -131,7 +128,7 @@ ISSUE_DEFINITIONS: dict[str, IssueDefinition] = {
             'Input "{handle_id}" on node "{node_id}" already has an incoming edge.'
         ),
         user_template=(
-            'The "{handle_label}" input on "{node_label}" already has a connection.'
+            'The {handle_label} input on "{node_label}" already has a connection.'
         ),
     ),
     "REQUIRED_INPUT_DISCONNECTED": IssueDefinition(
@@ -140,26 +137,25 @@ ISSUE_DEFINITIONS: dict[str, IssueDefinition] = {
             'Required input "{handle_id}" on node "{node_id}" is not connected.'
         ),
         user_template=(
-            'The "{handle_label}" input on "{node_label}" still needs a connection.'
+            'The {handle_label} input on "{node_label}" still needs a connection.'
         ),
     ),
-    "DISCONNECTED_NODE": IssueDefinition(
+    "REQUIRED_OUTPUT_DISCONNECTED": IssueDefinition(
         severity="warning",
-        log_template='Node "{node_id}" is not connected to any other node.',
-        user_template='"{node_label}" is not connected to anything.',
+        log_template=(
+            'Required output "{handle_id}" on node "{node_id}" is not connected.'
+        ),
+        user_template=(
+            'The {handle_label} output on "{node_label}" still needs a connection.'
+        ),
     ),
     "CYCLE_DETECTED": IssueDefinition(
-        severity="warning",
+        severity="error",
         log_template='Edge "{edge_id}" closes a cycle.',
         user_template=(
             'The connection from "{source_node_label}" back to '
             '"{target_node_label}" creates a loop.'
         ),
-    ),
-    "SELF_CONNECTION": IssueDefinition(
-        severity="warning",
-        log_template='Edge "{edge_id}" connects node "{node_id}" to itself.',
-        user_template='"{node_label}" cannot connect to itself.',
     ),
 }
 

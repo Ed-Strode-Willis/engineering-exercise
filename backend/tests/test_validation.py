@@ -14,6 +14,7 @@ from app.validation.examples import (
     input_already_connected,
     invalid_handle_direction,
     open_required_input,
+    open_required_output,
     self_connected_transform,
     several_independent_failures,
     two_node_cycle,
@@ -85,27 +86,33 @@ def test_two_separate_pipelines_are_valid():
 @pytest.mark.parametrize(
     ("workflow_builder", "expected_codes"),
     [
-        (disconnected_data_source, ["DISCONNECTED_NODE"]),
+        (disconnected_data_source, []),
         (self_connected_transform, ["CYCLE_DETECTED"]),
         (two_node_cycle, ["CYCLE_DETECTED"]),
         (open_required_input, ["REQUIRED_INPUT_DISCONNECTED"]),
-        (input_already_connected, ["INPUT_ALREADY_CONNECTED"]),
-        (incompatible_handle_types, ["INCOMPATIBLE_HANDLE_TYPES"]),
-        (unknown_node, ["UNKNOWN_NODE"]),
-        (unknown_handle, ["UNKNOWN_HANDLE"]),
-        (invalid_handle_direction, ["INVALID_HANDLE_DIRECTION"]),
-        (duplicate_edge_id, ["DUPLICATE_EDGE_ID"]),
+        (open_required_output, ["REQUIRED_OUTPUT_DISCONNECTED"]),
         (
-            duplicate_node_id,
-            ["DUPLICATE_NODE_ID", "DISCONNECTED_NODE"],
+            input_already_connected,
+            ["INPUT_ALREADY_CONNECTED", "REQUIRED_OUTPUT_DISCONNECTED"],
         ),
         (
+            incompatible_handle_types,
+            ["INCOMPATIBLE_HANDLE_TYPES", "REQUIRED_OUTPUT_DISCONNECTED"],
+        ),
+        (unknown_node, ["UNKNOWN_NODE"]),
+        (
+            unknown_handle,
+            ["UNKNOWN_HANDLE", "REQUIRED_OUTPUT_DISCONNECTED"],
+        ),
+        (
+            invalid_handle_direction,
+            ["INVALID_HANDLE_DIRECTION", "REQUIRED_OUTPUT_DISCONNECTED"],
+        ),
+        (duplicate_edge_id, ["DUPLICATE_EDGE_ID"]),
+        (duplicate_node_id, ["DUPLICATE_NODE_ID"]),
+        (
             duplicate_handle_id,
-            [
-                "DUPLICATE_HANDLE_ID",
-                "HANDLES_DO_NOT_MATCH_CATALOG",
-                "DISCONNECTED_NODE",
-            ],
+            ["DUPLICATE_HANDLE_ID", "HANDLES_DO_NOT_MATCH_CATALOG"],
         ),
         (handles_do_not_match_catalog, ["HANDLES_DO_NOT_MATCH_CATALOG"]),
         (
@@ -113,7 +120,7 @@ def test_two_separate_pipelines_are_valid():
             [
                 "INCOMPATIBLE_HANDLE_TYPES",
                 "REQUIRED_INPUT_DISCONNECTED",
-                "DISCONNECTED_NODE",
+                "REQUIRED_OUTPUT_DISCONNECTED",
                 "CYCLE_DETECTED",
             ],
         ),
@@ -126,25 +133,33 @@ def test_validation_reports_each_expected_code(workflow_builder, expected_codes)
 def test_a_broken_document_reports_errors_and_a_half_built_one_reports_warnings():
     result = validate_workflow(several_independent_failures())
     assert result.valid is False
-    assert issue_codes(result.errors) == ["INCOMPATIBLE_HANDLE_TYPES"]
+    assert issue_codes(result.errors) == [
+        "INCOMPATIBLE_HANDLE_TYPES",
+        "CYCLE_DETECTED",
+    ]
     assert issue_codes(result.warnings) == [
         "REQUIRED_INPUT_DISCONNECTED",
-        "DISCONNECTED_NODE",
-        "CYCLE_DETECTED",
+        "REQUIRED_OUTPUT_DISCONNECTED",
     ]
 
 
 def test_a_warning_on_its_own_still_makes_the_workflow_invalid():
-    result = validate_workflow(disconnected_data_source())
+    result = validate_workflow(open_required_output())
     assert result.valid is False
     assert result.errors == []
-    assert issue_codes(result.warnings) == ["DISCONNECTED_NODE"]
+    assert issue_codes(result.warnings) == ["REQUIRED_OUTPUT_DISCONNECTED"]
+
+
+def test_a_node_connected_to_itself_is_a_loop():
+    self_connection = validate_workflow(self_connected_transform())
+    assert issue_codes(self_connection.errors) == ["CYCLE_DETECTED"]
+    assert self_connection.warnings == []
 
 
 def test_duplicate_ids_are_errors_not_warnings():
     result = validate_workflow(duplicate_node_id())
     assert issue_codes(result.errors) == ["DUPLICATE_NODE_ID"]
-    assert issue_codes(result.warnings) == ["DISCONNECTED_NODE"]
+    assert result.warnings == []
 
 
 def test_the_returned_message_names_labels_and_the_logged_one_names_ids(caplog):
@@ -172,17 +187,19 @@ def test_an_error_is_logged_as_an_error_and_a_warning_as_a_warning(caplog):
         record.message.split(":")[0]: record.levelname for record in caplog.records
     }
     assert logged_levels_by_code["INCOMPATIBLE_HANDLE_TYPES"] == "ERROR"
-    assert logged_levels_by_code["DISCONNECTED_NODE"] == "WARNING"
-    assert logged_levels_by_code["CYCLE_DETECTED"] == "WARNING"
+    assert logged_levels_by_code["CYCLE_DETECTED"] == "ERROR"
+    assert logged_levels_by_code["REQUIRED_OUTPUT_DISCONNECTED"] == "WARNING"
 
 
 def test_the_returned_issue_carries_the_user_message():
-    result = validate_workflow(disconnected_data_source())
-    disconnected_issue = result.warnings[0]
-    assert disconnected_issue.severity == "warning"
-    assert disconnected_issue.message == '"Load Dataset" is not connected to anything.'
-    assert disconnected_issue.node_id == "datasource-1"
-    assert disconnected_issue.path == "nodes[0]"
+    result = validate_workflow(open_required_output())
+    open_output_issue = result.warnings[0]
+    assert open_output_issue.severity == "warning"
+    assert open_output_issue.message == (
+        'The Dataset output on "Transform Dataset" still needs a connection.'
+    )
+    assert open_output_issue.node_id == "transform-1"
+    assert open_output_issue.path == "nodes[1]"
 
 
 @pytest.mark.parametrize("issue_code", list(ISSUE_DEFINITIONS))

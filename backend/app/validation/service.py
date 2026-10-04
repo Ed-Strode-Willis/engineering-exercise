@@ -1,43 +1,31 @@
 """Validate a whole workflow document.
 
-Every check always runs, so one save reports every problem at once rather than
-the first one found. Each issue is reported twice: the user message, built from
-the labels on the canvas, is returned to the client, and the id-based message is
-written to the backend log at a level matching the severity.
+Every check always runs. The message returned to the client uses the labels on
+the canvas. The message written to the log uses ids.
 
-What is checked, in the order the issues come back:
+Errors:
 
-1. **Duplicate node ids** (error). Two nodes stored under one id. Edges name
-   their nodes by id, so a repeated id makes the document ambiguous.
-2. **Duplicate edge ids** (error). Two edges stored under one id, so one edge
-   cannot be addressed on its own.
-3. **Duplicate handle ids** (error). One node offering the same handle twice on
-   the same side. An id may appear once as an input and once as an output, which
-   is how a Transform has `dataset` on both sides.
-4. **Handles match the catalog** (error). Each node's input handles and output
-   handles must be the ones its type declares, in the same order, with the same
-   types and the same required flags. Labels are free: they are names, not
-   identity.
-5. **Edge checks** (all errors), for each edge:
-   - both ends name a node that exists;
-   - both ends name a handle that exists on that node;
-   - the edge runs from an output handle to an input handle, not from an input
-     handle, and not to an output handle;
-   - the two handle types are compatible, which here means equal;
-   - the target input handle has no other incoming edge. An output handle may
-     have many outgoing edges, but an input handle takes one.
-6. **Required input handles** (warning). A required input handle with no incoming
-   edge. A normal state while the nodes are still being wired together.
-7. **Disconnected nodes** (warning). A node with no edge at either end. Usually
-   it was just added.
-8. **Cycles** (warning). Following edges from a node must not lead back to that
-   node. The editor allows such an edge, so a user really can cause this; the
-   issue names the edge that closes the cycle rather than every node on it.
+- Two nodes share an id.
+- Two edges share an id.
+- One node uses the same handle id twice on the same side.
+- An edge names a node that is not in the workflow.
+- An edge names a handle that node does not have.
+- A node's handles are not the ones its type declares.
+- An edge does not run from an output to an input.
+- The two handle types are different.
+- An input already has a connection.
+- An edge closes a loop, including a node connected to itself.
 
-A workflow is valid only when nothing at all was found. A warning still makes it
-invalid: a document with warnings is not one a user should believe is finished,
-and the severity says whose problem it is. Severity, and why those three checks
-are warnings, is explained in `app/validation/catalog.py`.
+Warnings:
+
+- A required input has no connection.
+- A required output has no connection. A Transform output is required.
+
+A warning still makes the workflow invalid.
+
+The frontend refuses a loop, mismatched handle types, and a second connection
+into an input while an edge is dragged. Those checks have to stay in step with
+this list.
 """
 
 import logging
@@ -95,7 +83,7 @@ def collect_validation_issues(
         *find_catalog_mismatches(nodes),
         *find_edge_problems(nodes_by_id, edges),
         *find_open_required_inputs(nodes, edges),
-        *find_disconnected_nodes(nodes, edges),
+        *find_open_required_outputs(nodes, edges),
         *find_cycles(nodes_by_id, nodes, edges),
     ]
 
@@ -457,39 +445,33 @@ def find_open_required_inputs(
     return open_input_issues
 
 
-def find_disconnected_nodes(
+def find_open_required_outputs(
     nodes: list[WorkflowNode], edges: list[WorkflowEdge]
 ) -> list[ValidationIssue]:
-    """A node with no edge at either end."""
-    known_node_ids = {node.id for node in nodes}
-    connected_node_ids = collect_connected_node_ids(edges, known_node_ids)
-    disconnected_node_issues: list[ValidationIssue] = []
-    reported_node_ids: set[str] = set()
+    """A required output handle with no outgoing edge."""
+    connected_outputs = {(edge.source_node_id, edge.source_handle_id) for edge in edges}
+    open_output_issues: list[ValidationIssue] = []
     for node_index, node in enumerate(nodes):
-        if node.id in connected_node_ids or node.id in reported_node_ids:
-            continue
-        reported_node_ids.add(node.id)
-        disconnected_node_issues.append(
-            build_validation_issue(
-                "DISCONNECTED_NODE",
-                {"node_id": node.id, "node_label": label_for_node(node)},
-                node_id=node.id,
-                path=f"nodes[{node_index}]",
+        catalog_entry = NODE_CATALOG[node.type]
+        for catalog_output in catalog_entry.outputs:
+            if not catalog_output.required:
+                continue
+            if (node.id, catalog_output.id) in connected_outputs:
+                continue
+            open_output_issues.append(
+                build_validation_issue(
+                    "REQUIRED_OUTPUT_DISCONNECTED",
+                    {
+                        "handle_id": catalog_output.id,
+                        "node_id": node.id,
+                        "handle_label": label_for_declared_output(node, catalog_output),
+                        "node_label": label_for_node(node),
+                    },
+                    node_id=node.id,
+                    path=f"nodes[{node_index}]",
+                )
             )
-        )
-    return disconnected_node_issues
-
-
-def collect_connected_node_ids(
-    edges: list[WorkflowEdge], known_node_ids: set[str]
-) -> set[str]:
-    connected_node_ids: set[str] = set()
-    for edge in edges:
-        if edge.source_node_id in known_node_ids:
-            connected_node_ids.add(edge.source_node_id)
-        if edge.target_node_id in known_node_ids:
-            connected_node_ids.add(edge.target_node_id)
-    return connected_node_ids
+    return open_output_issues
 
 
 def find_cycles(
@@ -629,17 +611,34 @@ def label_for_node_id(nodes_by_id: dict[str, WorkflowNode], node_id: str) -> str
 
 
 def label_for_handle(handle: HandleDefinition) -> str:
-    return handle.label.strip() or handle.id
+    """A custom handle label is quoted. A data type is left bare."""
+    handle_label = handle.label.strip()
+    if not handle_label or handle_label == handle.type:
+        return handle.type
+    return f'"{handle_label}"'
 
 
 def label_for_declared_input(
     node: WorkflowNode, catalog_input: HandleDefinition
 ) -> str:
     """Prefer the label the node carries, which is the one drawn on the canvas."""
-    declared_input = find_handle(node.data.inputs, catalog_input.id)
-    if declared_input is None:
-        return label_for_handle(catalog_input)
-    return label_for_handle(declared_input)
+    return label_for_declared_handle(node.data.inputs, catalog_input)
+
+
+def label_for_declared_output(
+    node: WorkflowNode, catalog_output: HandleDefinition
+) -> str:
+    """Prefer the label the node carries, which is the one drawn on the canvas."""
+    return label_for_declared_handle(node.data.outputs, catalog_output)
+
+
+def label_for_declared_handle(
+    declared_handles: list[HandleDefinition], catalog_handle: HandleDefinition
+) -> str:
+    declared_handle = find_handle(declared_handles, catalog_handle.id)
+    if declared_handle is None:
+        return label_for_handle(catalog_handle)
+    return label_for_handle(declared_handle)
 
 
 def find_output_handle(

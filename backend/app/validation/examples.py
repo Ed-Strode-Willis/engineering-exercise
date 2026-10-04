@@ -109,6 +109,17 @@ def two_node_cycle() -> WorkflowWrite:
     )
 
 
+def open_required_output() -> WorkflowWrite:
+    return workflow_document(
+        "Missing output",
+        [
+            place("datasource-1", "DataSource", "Load Dataset"),
+            place("transform-1", "Transform", "Transform Dataset", 300),
+        ],
+        [connect("edge-1", "datasource-1", "transform-1")],
+    )
+
+
 def open_required_input() -> WorkflowWrite:
     return workflow_document(
         "Missing input",
@@ -277,6 +288,7 @@ VALIDATION_EXAMPLE_BUILDERS = [
     ("disconnected data source", disconnected_data_source),
     ("self connected transform", self_connected_transform),
     ("two node cycle", two_node_cycle),
+    ("open required output", open_required_output),
     ("open required input", open_required_input),
     ("input already connected", input_already_connected),
     ("incompatible handle types", incompatible_handle_types),
