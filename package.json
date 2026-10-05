@@ -1,8 +1,9 @@
 {
   "name": "gui-starter",
   "private": true,
-  "description": "Optional root scripts to run both apps at once. Each app can also be run on its own — see frontend/README.md and backend/README.md.",
+  "description": "Run the workflow editor and API together. See README.md.",
   "scripts": {
+    "install:all": "npm install && npm install --prefix frontend && cd backend && poetry install",
     "dev": "concurrently -n frontend,backend,types -c blue,green,yellow \"npm run dev:frontend\" \"npm run dev:backend\" \"npm run dev:types\"",
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "cd backend && poetry run uvicorn app.main:app --reload --port 8000",
