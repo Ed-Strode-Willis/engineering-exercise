@@ -27,9 +27,14 @@ export function SaveStatus() {
 }
 
 function SaveStatusIcon({ requestState }: { requestState: EditorRequestState }) {
-  if (requestState === "loading" || requestState === "saving") return <SpinnerIcon />;
+  if (requestIsInFlight(requestState)) return <SpinnerIcon />;
   if (requestState === "saved") return <SavedIcon />;
-  return <NotSavedIcon />;
+  if (requestState === "networkError") return <ServerUnavailableIcon />;
+  return <MissingWorkflowIcon />;
+}
+
+function requestIsInFlight(requestState: EditorRequestState): boolean {
+  return requestState === "loading" || requestState === "saving";
 }
 
 function saveStatusLabel(requestState: EditorRequestState): string {
@@ -41,7 +46,7 @@ function saveStatusLabel(requestState: EditorRequestState): string {
     case "saved":
       return "Saved";
     case "networkError":
-      return "Not saved";
+      return "Server unavailable";
     case "notFound":
       return "Missing";
     case "idle":
@@ -57,7 +62,15 @@ function SavedIcon() {
   );
 }
 
-function NotSavedIcon() {
+function ServerUnavailableIcon() {
+  return (
+    <SaveDiskIcon>
+      <ExclamationMark />
+    </SaveDiskIcon>
+  );
+}
+
+function MissingWorkflowIcon() {
   return (
     <SaveDiskIcon>
       <CrossMark />
@@ -97,6 +110,21 @@ function TickMark() {
       strokeLinecap="round"
       strokeLinejoin="round"
     />
+  );
+}
+
+function ExclamationMark() {
+  return (
+    <>
+      <path
+        d="M8 7.2v2.6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      <circle cx="8" cy="11.3" r="0.7" fill="currentColor" />
+    </>
   );
 }
 

@@ -81,6 +81,8 @@ function proposedConnectionFromDrag(
 
 const nodeTypes = { workflowNode: WorkflowNode } satisfies NodeTypes;
 const edgeTypes = { default: WorkflowEdge } satisfies EdgeTypes;
+const canvasMinimumZoom = 0.1;
+const canvasFitViewOptions = { padding: 0.45, maxZoom: 0.75 };
 
 export function WorkflowCanvas() {
   const nodes = useWorkflowStore((state) => state.nodes);
@@ -126,7 +128,8 @@ export function WorkflowCanvas() {
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
-        fitViewOptions={{ padding: 0.45, maxZoom: 0.75 }}
+        minZoom={canvasMinimumZoom}
+        fitViewOptions={canvasFitViewOptions}
         proOptions={{ hideAttribution: true }}
         nodesDraggable={!canvasIsLocked}
         nodesConnectable={!canvasIsLocked}

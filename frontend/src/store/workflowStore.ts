@@ -130,6 +130,7 @@ export const useWorkflowStore = create<WorkflowEditorState>((set, get) => {
       requestState: "notFound",
       saveFailureDialogIsOpen: false,
       activeWorkflowId: null,
+      workflowName: "",
       nodes: [],
       edges: [],
       validation: null,
@@ -567,9 +568,17 @@ function saveQueueIgnoringFailure(saveTask: Promise<void>): Promise<void> {
   return saveTask.catch(() => undefined);
 }
 
+const newNodeOriginPixels = 80;
+const newNodeColumnCount = 3;
+const newNodeWidthPixels = 320;
+const newNodeHeightPixels = 220;
+const newNodeGapPixels = 48;
+
 function nextNodePosition(existingNodeCount: number): { x: number; y: number } {
+  const columnIndex = existingNodeCount % newNodeColumnCount;
+  const rowIndex = Math.floor(existingNodeCount / newNodeColumnCount);
   return {
-    x: 80 + (existingNodeCount % 4) * 48,
-    y: 80 + existingNodeCount * 28,
+    x: newNodeOriginPixels + columnIndex * (newNodeWidthPixels + newNodeGapPixels),
+    y: newNodeOriginPixels + rowIndex * (newNodeHeightPixels + newNodeGapPixels),
   };
 }

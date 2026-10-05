@@ -213,6 +213,7 @@ describe("workflow store", () => {
       expect(useWorkflowStore.getState().requestState).toBe("notFound");
     });
     expect(useWorkflowStore.getState().activeWorkflowId).toBeNull();
+    expect(useWorkflowStore.getState().workflowName).toBe("");
     expect(useWorkflowStore.getState().nodes).toEqual([]);
     expect(useWorkflowStore.getState().saveFailureDialogIsOpen).toBe(false);
   });
@@ -320,6 +321,7 @@ describe("workflow store", () => {
 
     expect(useWorkflowStore.getState().requestState).toBe("notFound");
     expect(useWorkflowStore.getState().activeWorkflowId).toBeNull();
+    expect(useWorkflowStore.getState().workflowName).toBe("");
     expect(useWorkflowStore.getState().nodes).toEqual([]);
   });
 
@@ -399,6 +401,22 @@ describe("workflow store", () => {
         ],
       }),
     );
+  });
+
+  it("places each new node clear of the nodes already on the canvas", () => {
+    openSavedWorkflow();
+
+    useWorkflowStore.getState().addNode("DataSource", "Load rows", { dataset: "Raw rows" });
+    useWorkflowStore.getState().addNode("Transform", "Clean rows", { dataset: "Clean rows" });
+    useWorkflowStore.getState().addNode("Model", "Train", { model: "Weights" });
+    useWorkflowStore.getState().addNode("Transform", "Next row", { dataset: "Next" });
+
+    expect(useWorkflowStore.getState().nodes.map((node) => node.position)).toEqual([
+      { x: 80, y: 80 },
+      { x: 448, y: 80 },
+      { x: 816, y: 80 },
+      { x: 80, y: 348 },
+    ]);
   });
 
   it("does not save a blank node title", async () => {
